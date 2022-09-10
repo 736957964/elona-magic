@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <div>
+        <div>魔力/意志：<input type="text" value="300" class="num"></div>
+        <div>感知：<input type="text" value="200" class="num"></div>
+        <div>法术技能：<input type="text" value="100" class="num"></div>
+        <div>专精等级：<input type="text" value="50" class="num"></div>
+        <div>词条容量：<input type="text" value="200" class="num"></div>
+        <div>额外词条容量：<input type="text" value="0" class="num"></div>
+        <button type="button" onclick="ckCount({isCkChart:false})">计算</button>
+        <div>结果：<span id="original"></span></div>
+        <div>------ps:数值仅供参考,尚未算取耐性------</div>
+        <div>显示参数：<input type="text" value="7" class="num2"></div>
+        <div>专精跨度：<input type="text" value="22" class="num2"></div>
+        <div>魔力/意志跨度：<input type="text" value="26" class="num2"></div></br>
+        <button type="button" onclick="ckChart()">显示多图表</button></br>
+        <div id="main" style="width:100%;height:400px;margin-top: 20px;margin-left: 20px"></div>
+    </div>
+</body>
+<script src="https://cdn.staticfile.org/echarts/4.3.0/echarts.min.js"></script>
+<script type="text/javascript">
+    // 基于准备好的dom，初始化echarts实例
+    const myChart = echarts.init(document.getElementById('main'));
+    // Custom 自己定义专精计算
+    const ckCount = function ckCount({isCkChart = false,Custom,Magic}){
+        const num = document.getElementsByClassName('num')
+        const original = document.getElementById('original')
+        const numValue = []
+        for(let i=0;i<num.length;i++) {
+            numValue.push(num[i].value ? JSON.parse(num[i].value) : 0)
+        }
+        const Magnification = (3.2*(Magic || numValue[0])+1.75*numValue[2]+0.6*numValue[1]+70) / 100
+        const strength = (Custom || numValue[3]) * 10 + numValue[4] + numValue[5] // 专精+容量
+        const BasicDamage = 0.00075 * strength * strength + 0.12 * strength + 16.6
+        const result = BasicDamage * Magnification
+        if( !isCkChart){
+            original.innerHTML = `魔/意,感,法系倍率:${Magnification},专精基础伤害:${BasicDamage},最终结果:${result.toFixed(4)}`
+        }else {
+            return {Magnification,BasicDamage,result:result.toFixed(0),strength,numValue}
+        }
+    }
+    function ckChart(){
+        const num2 = document.getElementsByClassName('num2')
+        const num2Value = []
+        for(let i=0;i<num2.length;i++) {
+            num2Value.push(num2[i].value ? JSON.parse(num2[i].value) : 0)
+        }
+        const {Magnification,BasicDamage,result,numValue} = ckCount({isCkChart:true})
+        let xAxisData = []
+        let yAxisData = []
+        let difference = []
+        let xMagicPower = []
+        let magicPower = [] // 魔力的
+        let diffMagicPower = [] //魔力的差值
+        for(let i=0;i<num2Value[0];i++){
+            const xData = ckCount({isCkChart:true,Custom:numValue[3]+Math.ceil(i-num2Value[0]/3)*num2Value[1]})
+            const xData2 = ckCount({isCkChart:true, Magic:numValue[0]+Math.ceil(i-num2Value[0]/3)*num2Value[2]}) //换算魔力
+            const {Magnification,BasicDamage,result } = xData
+            yAxisData.push(result)
+            xAxisData.push(numValue[3]+Math.ceil(i-num2Value[0]/3)*num2Value[1])
+            magicPower.push(xData2.result)
+            xMagicPower.push(numValue[0]+Math.ceil(i-num2Value[0]/3)*num2Value[2])
+            if(i === 0){
+                difference.push(0)
+                diffMagicPower.push(0)
+            }else {
+                difference.push(yAxisData[i]-yAxisData[i-1])
+                diffMagicPower.push(magicPower[i]-magicPower[i-1])
+            }
+        }
+        // 指定图表的配置项和数据
+        var option = {
+            grid:{
+                left:'70px'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            legend: {
+                data: ['不同专精同魔力伤害', '专精距上段差','同专精不同魔力伤害','魔力距上段差']
+            },
+            title: { text: '跨度图表' },
+            xAxis: [
+                {
+                    data: xAxisData
+                },
+                {
+                    data: xMagicPower,
+                    position:'bottom',
+                    offset:20
+                },
+            ],
+            yAxis: {
+                // data: yAxisData
+            },
+            series: [
+                {
+                    name: '不同专精同魔力伤害',
+                    type: 'line',
+                    data: yAxisData,
+                    symbolSize:8,  //设置折线上圆点大小
+                    itemStyle:{
+                        normal:{
+                            label : { show: true  }// 在折线拐点上显示数据
+                        }
+                    }
+                },
+                {
+                    name: '专精距上段差',
+                    type: 'line',
+                    data: difference,
+                    symbolSize:8,  //设置折线上圆点大小
+                    itemStyle:{
+                        normal:{
+                            label : { show: true  }// 在折线拐点上显示数据
+                        }
+                    }
+                },
+                {
+                    name: `同专精不同魔力伤害`,
+                    type: 'line',
+                    data: magicPower,
+                    symbolSize:8,  //设置折线上圆点大小
+                    itemStyle:{
+                        normal:{
+                            label : { show: true  }// 在折线拐点上显示数据
+                        }
+                    }
+                },
+                {
+                    name: `魔力距上段差`,
+                    type: 'line',
+                    data: diffMagicPower,
+                    symbolSize:8,  //设置折线上圆点大小
+                    itemStyle:{
+                        normal:{
+                            label : { show: true  }// 在折线拐点上显示数据
+                        }
+                    }
+                }
+            ]
+        };
+        // 使用刚指定的配置项和数据显示图表。
+        myChart.setOption(option);
+    }
+</script>
+</html>
